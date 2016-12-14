@@ -58,6 +58,8 @@
 #define mbedtls_free       free
 #endif
 
+#include "pal/watchdog.h"
+
 /* Implementation that should never be optimized out by the compiler */
 static void mbedtls_mpi_zeroize( mbedtls_mpi_uint *v, size_t n ) {
     volatile mbedtls_mpi_uint *p = v; while( n-- ) *p++ = 0;
@@ -1688,8 +1690,10 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi
         MBEDTLS_MPI_CHK( mbedtls_mpi_grow( &W[j], N->n + 1 ) );
         MBEDTLS_MPI_CHK( mbedtls_mpi_copy( &W[j], &W[1]    ) );
 
-        for( i = 0; i < wsize - 1; i++ )
+        for( i = 0; i < wsize - 1; i++ ) {
+            RESET_WATCHDOG();
             MBEDTLS_MPI_CHK( mpi_montmul( &W[j], &W[j], N, mm, &T ) );
+        }
 
         /*
          * W[i] = W[i - 1] * W[1]
@@ -1711,6 +1715,8 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi
 
     while( 1 )
     {
+        RESET_WATCHDOG();
+
         if( bufsize == 0 )
         {
             if( nblimbs == 0 )
@@ -1753,8 +1759,10 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi
             /*
              * X = X^wsize R^-1 mod N
              */
-            for( i = 0; i < wsize; i++ )
+            for( i = 0; i < wsize; i++ ) {
+                RESET_WATCHDOG();
                 MBEDTLS_MPI_CHK( mpi_montmul( X, X, N, mm, &T ) );
+            }
 
             /*
              * X = X * W[wbits] R^-1 mod N
@@ -1772,6 +1780,7 @@ int mbedtls_mpi_exp_mod( mbedtls_mpi *X, const mbedtls_mpi *A, const mbedtls_mpi
      */
     for( i = 0; i < nbits; i++ )
     {
+        RESET_WATCHDOG();
         MBEDTLS_MPI_CHK( mpi_montmul( X, X, N, mm, &T ) );
 
         wbits <<= 1;
